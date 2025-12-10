@@ -1,6 +1,4 @@
-Here is a professional, ready-to-use `README.md` for your GitHub repository. You can add this to your **frontend** repository (and a slightly modified version to your backend if you wish).
 
------
 
 # 👻 Guftagu - Anonymous Group Chat
 
