@@ -19,22 +19,38 @@ const showNotification = (title, body) => {
 
 const Landing = () => {
   const navigate = useNavigate();
-  // Request notification permission quietly on click
-  const requestNotifs = () => {
+  const [showNotifBanner, setShowNotifBanner] = useState(false);
+
+  useEffect(() => {
     if ("Notification" in window && Notification.permission === 'default') {
-      Notification.requestPermission();
+      setShowNotifBanner(true);
     }
+  }, []);
+
+  const enableNotifs = async () => {
+    await Notification.requestPermission();
+    setShowNotifBanner(false);
   };
 
   return (
-    <div className="container" onClick={requestNotifs}>
-      <h1>👻 GuftaGu</h1>
-      <h2>Private Group Messaging</h2>
-      <div className="card">
-        <button onClick={() => navigate('/create')} style={{marginBottom:'15px'}}>Create New Group</button>
-        <button onClick={() => navigate('/join')} className="btn-create" style={{background: '#2d3436', border:'1px solid #555'}}>Open Existing Group</button>
+    <>
+      {showNotifBanner && (
+        <div className="notif-banner">
+          <p>🔔 Enable notifications?</p>
+          <button className="enable-btn" onClick={enableNotifs}>Enable</button>
+          <button onClick={() => setShowNotifBanner(false)}>Close</button>
+        </div>
+      )}
+
+      <div className={`container ${showNotifBanner ? 'with-banner' : ''}`}>
+        <h1>👻 GuftaGu</h1>
+        <h2>Private Group Messaging</h2>
+        <div className="card">
+          <button onClick={() => navigate('/create')} className="btn-primary mb-15">Create New Group</button>
+          <button onClick={() => navigate('/join')} className="btn-secondary">Open Existing Group</button>
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 
@@ -62,22 +78,22 @@ const CreateGroup = () => {
     <div className="container">
       <h3>Create Group</h3>
       <div className="card">
-        <input placeholder="Enter Unique Group Name" value={groupName} onChange={e=>setGroupName(e.target.value)} />
-        <p style={{marginTop:'15px', borderTop:'1px solid #444', paddingTop:'15px', fontSize:'0.9em', color:'#aaa'}}>Optional: Create your character now</p>
-        <input placeholder="Your Character Name" value={charName} onChange={e=>setCharName(e.target.value)} />
-        <input placeholder="4-Digit PIN" maxLength={4} value={pin} onChange={e=>setPin(e.target.value)} />
+        <input className="auth-input" placeholder="Enter Unique Group Name" value={groupName} onChange={e=>setGroupName(e.target.value)} />
+        <p className="hint-text">Optional: Create your character now</p>
+        <input className="auth-input" placeholder="Your Character Name" value={charName} onChange={e=>setCharName(e.target.value)} />
+        <input className="auth-input" placeholder="4-Digit PIN" maxLength={4} value={pin} onChange={e=>setPin(e.target.value)} />
         {error && <span className="error-text">{error}</span>}
-        <button onClick={handlePreCheck} className="btn-login" style={{marginTop:'20px'}}>Create & Continue</button>
-        <button className="btn-back" style={{marginTop:'10px', width:'100%', border:'none'}} onClick={()=>navigate('/')}>Cancel</button>
+        <button onClick={handlePreCheck} className="btn-primary mt-20">Create & Continue</button>
+        <button className="btn-back" onClick={()=>navigate('/')}>Cancel</button>
       </div>
       {showConfirm && (
         <div className="modal-overlay">
           <div className="modal-content">
             <h3>Confirm Creation</h3>
-            <p>Group Name: <strong style={{color:'#00d2ff'}}>{groupName}</strong></p>
+            <p>Group Name: <strong className="highlight-text">{groupName}</strong></p>
             <div className="modal-actions">
               <button className="btn-cancel" onClick={() => setShowConfirm(false)}>Cancel</button>
-              <button className="btn-confirm" style={{background:'#28a745'}} onClick={handleCreate}>Yes, Create</button>
+              <button className="btn-confirm" onClick={handleCreate}>Yes, Create</button>
             </div>
           </div>
         </div>
@@ -107,10 +123,10 @@ const JoinGroup = () => {
     <div className="container">
       <h3>Open Group</h3>
       <div className="card">
-        <input placeholder="Enter Group Name" value={name} onChange={e=>{setName(e.target.value); setError('');}} onKeyDown={(e) => e.key === 'Enter' && handleJoin()} />
+        <input className="auth-input" placeholder="Enter Group Name" value={name} onChange={e=>{setName(e.target.value); setError('');}} onKeyDown={(e) => e.key === 'Enter' && handleJoin()} />
         {error && <span className="error-text">{error}</span>}
-        <button onClick={handleJoin} style={{marginTop:'15px'}} disabled={loading}>{loading ? "Checking..." : "Next"}</button>
-        <button className="btn-back" style={{marginTop:'10px', width:'100%', border:'none'}} onClick={()=>navigate('/')}>Cancel</button>
+        <button onClick={handleJoin} className="btn-primary mt-15" disabled={loading}>{loading ? "Checking..." : "Next"}</button>
+        <button className="btn-back" onClick={()=>navigate('/')}>Cancel</button>
       </div>
     </div>
   );
@@ -128,15 +144,13 @@ const GroupRoom = () => {
   const [myChar, setMyChar] = useState(null);
   const [groupExists, setGroupExists] = useState(true);
   
-  // Auth Form State
   const [selectedChar, setSelectedChar] = useState(null);
   const [inputName, setInputName] = useState('');
   const [inputPin, setInputPin] = useState('');
   const [error, setError] = useState('');
   
-  // Chat State
   const [msgText, setMsgText] = useState('');
-  const [replyTo, setReplyTo] = useState(null); // STORES REPLY
+  const [replyTo, setReplyTo] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   
   const chatEndRef = useRef(null);
@@ -165,7 +179,7 @@ const GroupRoom = () => {
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, replyTo]); // Auto scroll when messages change or reply opens
+  }, [messages, replyTo]);
 
   const fetchGroup = async () => {
     try {
@@ -224,43 +238,42 @@ const GroupRoom = () => {
   };
 
   const handleDoubleTap = (msg) => {
-    setReplyTo(msg); // Set the message to reply to
+    setReplyTo(msg);
   };
 
-  // --- AUTH VIEW ---
   if (step === 'auth') {
     return (
       <div className="container">
         <h3>Group: {code}</h3>
-        {error && <div className="card" style={{padding:'10px', background:'rgba(255,0,0,0.1)', border:'1px solid red', marginBottom:'10px'}}><span className="error-text">{error}</span></div>}
+        {error && <div className="card error-card"><span className="error-text">{error}</span></div>}
         
         {authView === 'selection' && (
           <div className="card">
-            <p style={{marginBottom:'20px', color:'#aaa'}}>Select an option to enter</p>
+            <p className="hint-text">Select an option to enter</p>
             <div className="auth-choice-container">
               <button className="big-btn btn-login" onClick={() => {setError(''); setAuthView('login')}}>Login as Existing</button>
               <button className="big-btn btn-create" onClick={() => {setError(''); setAuthView('create')}}>Create New Character</button>
             </div>
-            <button className="btn-back" style={{marginTop:'20px', width:'100%', border:'none'}} onClick={()=>navigate('/')}>Exit Group</button>
+            <button className="btn-back" onClick={()=>navigate('/')}>Exit Group</button>
           </div>
         )}
         {authView === 'login' && (
           <div className="card">
             <button className="btn-back" onClick={() => {setError(''); setAuthView('selection')}}>← Back</button>
-            <h3 style={{marginBottom:'20px'}}>Who are you?</h3>
+            <h3 className="auth-title">Who are you?</h3>
             {!groupExists || characters.length === 0 ? (
-              <p style={{color:'#888', fontStyle:'italic', padding:'20px'}}>{ !groupExists ? "Group not found." : "No characters yet."}</p>
+              <p className="empty-text">{ !groupExists ? "Group not found." : "No characters yet."}</p>
             ) : (
               characters.map(c => (
-                <div key={c._id} style={{borderBottom: '1px solid #333', padding: '12px 0'}}>
-                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-                    <span style={{fontWeight: '600', fontSize:'1.1em'}}>{c.name}</span>
-                    {selectedChar === c.name ? (<span style={{fontSize:'0.8em', color:'#aaa'}}>Enter PIN 👇</span>) : (<button style={{width:'auto', padding:'6px 16px', background:'#444'}} onClick={() => {setError(''); setSelectedChar(c.name)}}>Select</button>)}
+                <div key={c._id} className="char-row">
+                  <div className="char-info">
+                    <span className="char-name">{c.name}</span>
+                    {selectedChar === c.name ? (<span className="enter-pin-text">Enter PIN 👇</span>) : (<button className="btn-select" onClick={() => {setError(''); setSelectedChar(c.name)}}>Select</button>)}
                   </div>
                   {selectedChar === c.name && (
-                    <div style={{marginTop:'10px', display:'flex', gap:'8px'}}>
-                       <input autoFocus placeholder="PIN" type="password" maxLength={4} onChange={e => setInputPin(e.target.value)} />
-                       <button style={{width:'80px'}} onClick={() => attemptAuth(c.name, inputPin, false)}>Go</button>
+                    <div className="pin-input-row">
+                       <input className="auth-input" autoFocus placeholder="PIN" type="password" maxLength={4} onChange={e => setInputPin(e.target.value)} />
+                       <button className="btn-go" onClick={() => attemptAuth(c.name, inputPin, false)}>Go</button>
                     </div>
                   )}
                 </div>
@@ -271,68 +284,44 @@ const GroupRoom = () => {
         {authView === 'create' && (
           <div className="card">
              <button className="btn-back" onClick={() => {setError(''); setAuthView('selection')}}>← Back</button>
-             <h3 style={{marginBottom:'20px'}}>New Character</h3>
-             <input placeholder="Character Name" value={inputName} onChange={e=>setInputName(e.target.value)} />
-             <input placeholder="4-Digit PIN" maxLength={4} value={inputPin} onChange={e=>setInputPin(e.target.value)} />
-             <button onClick={() => attemptAuth(inputName, inputPin, true)} style={{marginTop:'15px'}} className="btn-create">Join Chat</button>
+             <h3 className="auth-title">New Character</h3>
+             <input className="auth-input" placeholder="Character Name" value={inputName} onChange={e=>setInputName(e.target.value)} />
+             <input className="auth-input" placeholder="4-Digit PIN" maxLength={4} value={inputPin} onChange={e=>setInputPin(e.target.value)} />
+             <button onClick={() => attemptAuth(inputName, inputPin, true)} className="btn-create-submit">Join Chat</button>
           </div>
         )}
       </div>
     );
   }
 
-  // --- CHAT VIEW (FIXED: Wide Input, Small Exit, Reply) ---
+  // --- CHAT RENDER ---
   return (
-    <div style={{display:'flex', flexDirection:'column', height:'100dvh', width:'100vw', overflow:'hidden', position:'fixed', top:0, left:0}}>
+    <div className="chat-wrapper">
       
       {/* 1. HEADER */}
-      <div style={{
-        background: 'linear-gradient(to bottom, #0a0a0a, #121212)', 
-        padding:'15px 15px', 
-        display:'flex', 
-        justifyContent:'space-between', 
-        alignItems:'center', 
-        boxShadow:'0 2px 5px rgba(0,0,0,0.2)',
-        height: '50px',
-        flexShrink: 0,
-        zIndex: 10
-      }}>
-        <div style={{display:'flex', flexDirection:'column'}}>
-          <h3 style={{margin:0, color:'#d8dfe1ff', fontSize:'1.1em'}}>{code}</h3>
-          <small style={{fontSize:'0.7em', color:'#888'}}></small>
+      <div className="chat-header">
+        <div className="header-info">
+          <h3 className="room-name">{code}</h3>
+          <small className="room-hint">Double tap to reply</small>
         </div>
-        <button 
-          style={{width:'auto', padding:'5px 10px', fontSize:'0.8em', background:'#ff4d4d', color:'white', border:'none', borderRadius:'4px', cursor:'pointer'}} 
-          onClick={()=>setStep('auth')}
-        >
-          Exit
-        </button>
+        <button className="btn-exit" onClick={()=>setStep('auth')}>Exit</button>
       </div>
       
       {/* 2. MESSAGES */}
-      <div className="chat-box" style={{flex: 1, padding:'15px', overflowY:'auto', display:'flex', flexDirection:'column', gap:'10px', paddingBottom:'20px'}}>
+      <div className="chat-area">
         {messages.map((m, i) => (
-          <div key={i} className={`msg ${m.sender === myChar.name ? 'mine' : ''}`} style={{display:'flex', flexDirection:'column', maxWidth:'80%'}}>
+          <div key={i} className={`msg-row ${m.sender === myChar.name ? 'mine' : ''}`}>
              {m.sender !== myChar.name && <div className="msg-meta">{m.sender}</div>}
              
-             {/* MESSAGE BUBBLE */}
              <div 
-               onDoubleClick={() => handleDoubleTap(m)} // DOUBLE TAP LOGIC
+               className="msg-bubble"
+               onDoubleClick={() => handleDoubleTap(m)}
                title="Double tap to reply"
-               style={{cursor:'pointer'}}
              >
                {/* REPLY CONTEXT */}
                {m.replyTo && (
-                 <div style={{
-                   background:'rgba(0,0,0,0.2)', 
-                   borderLeft:'3px solid #00d2ff', 
-                   padding:'5px', 
-                   marginBottom:'5px', 
-                   borderRadius:'4px',
-                   fontSize:'0.8em',
-                   color:'#ccc'
-                 }}>
-                   <strong style={{color:'#00d2ff'}}>{m.replyTo.sender}</strong>: {m.replyTo.text || '[File]'}
+                 <div className="reply-context">
+                   <strong className="reply-sender">{m.replyTo.sender}</strong>: {m.replyTo.text || '[File]'}
                  </div>
                )}
 
@@ -346,9 +335,9 @@ const GroupRoom = () => {
                      </>
                    )}
                    {m.fileType !== 'image' && (
-                     <a href={`${API_URL}${m.fileUrl}`} download target="_blank" rel="noopener noreferrer" className="download-btn" style={{background:'#333', color:'white', border:'1px solid #555'}}>
+                     <a href={`${API_URL}${m.fileUrl}`} download target="_blank" rel="noopener noreferrer" className="file-link">
                        <span className="file-icon">📄</span> 
-                       <div><div>{m.fileName}</div><small style={{color:'#aaa', fontWeight:'normal'}}>Click to Download</small></div>
+                       <div><div>{m.fileName}</div><small>Click to Download</small></div>
                      </a>
                    )}
                  </div>
@@ -358,53 +347,34 @@ const GroupRoom = () => {
              </div>
           </div>
         ))}
-        {isUploading && <div style={{textAlign:'center', fontSize:'0.8em', color:'#aaa', marginTop:'10px'}}>Uploading file (please wait)...</div>}
+        {isUploading && <div className="uploading-text">Uploading file (please wait)...</div>}
         <div ref={chatEndRef} />
       </div>
 
-      {/* 3. INPUT AREA (Fixed, Wide) */}
-      <div style={{background:'#1a1d21', padding:'10px', borderTop:'1px solid #333', flexShrink:0, width: '100%', boxSizing: 'border-box'}}>
+      {/* 3. INPUT AREA */}
+      <div className="input-area">
         
         {/* REPLY BANNER */}
         {replyTo && (
-          <div style={{background:'#222', padding:'8px', marginBottom:'8px', borderRadius:'4px', borderLeft:'3px solid #00d2ff', display:'flex', justifyContent:'space-between', color:'white'}}>
-            <span style={{fontSize:'0.9em'}}>Replying to <strong>{replyTo.sender}</strong></span>
-            <span onClick={() => setReplyTo(null)} style={{cursor:'pointer', fontWeight:'bold', color:'#888'}}>✖</span>
+          <div className="reply-preview-bar">
+            <span>Replying to <strong>{replyTo.sender}</strong></span>
+            <span onClick={() => setReplyTo(null)} className="close-reply">✖</span>
           </div>
         )}
 
-        <div style={{display:'flex', gap:'10px', alignItems:'center', width:'100%'}}>
+        <div className="input-wrapper">
           <input type="file" ref={fileInputRef} style={{display:'none'}} onChange={handleFileSelect} />
-          <button 
-            style={{width:'40px', height:'40px', background:'transparent', fontSize:'1.5em', padding:'0', border:'none', color:'#aaa', cursor:'pointer'}} 
-            onClick={() => fileInputRef.current.click()}
-          >
-            📎
-          </button>
+          <button className="btn-icon" onClick={() => fileInputRef.current.click()}>📎</button>
 
-          {/* WIDE INPUT */}
           <input 
-            style={{
-              flex: 1, 
-              padding:'12px', 
-              borderRadius:'25px', 
-              border:'1px solid #444', 
-              background:'#2a2e38', 
-              color:'white', 
-              fontSize:'1rem',
-              marginBottom: 0,
-              width: '100%'
-            }} 
+            className="msg-input" 
             value={msgText} 
             onChange={e=>setMsgText(e.target.value)} 
             placeholder="Type a message..." 
             onKeyDown={e => e.key === 'Enter' && sendMessage()} 
           />
           
-          <button 
-            style={{width:'50px', height:'40px', background:'transparent', border:'none', color:'#00d2ff', fontSize:'1.5em', cursor:'pointer', marginTop:0}} 
-            onClick={sendMessage}
-          >
+          <button className="btn-icon send-icon" onClick={sendMessage}>
             <RiSendPlane2Line />
           </button>
         </div>
@@ -413,7 +383,6 @@ const GroupRoom = () => {
   );
 };
 
-// --- ADMIN COMPONENT ---
 const Admin = () => {
   const [auth, setAuth] = useState(false);
   const [password, setPassword] = useState('');
@@ -453,59 +422,53 @@ const Admin = () => {
     <div className="container">
       <h3>Admin Panel</h3>
       <div className="card">
-        <input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Enter Admin Password" />
-        <button onClick={login}>Login</button>
+        <input className="auth-input" type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Enter Admin Password" />
+        <button className="btn-primary" onClick={login}>Login</button>
       </div>
     </div>
   );
 
   return (
-    <div className="container" style={{maxWidth:'600px'}}>
+    <div className="container admin-container">
       <h3>Admin Dashboard</h3>
-      <div style={{display:'flex', gap:'10px', marginBottom:'20px'}}>
-        <button style={{background: '#444', width:'auto'}} onClick={()=>setAuth(false)}>Logout</button>
-        <button style={{background: '#00d2ff', width:'auto', color:'#000'}} onClick={fetchData}>Refresh</button>
+      <div className="admin-controls">
+        <button className="btn-secondary" onClick={()=>setAuth(false)}>Logout</button>
+        <button className="btn-primary" onClick={fetchData}>Refresh</button>
       </div>
       
-      <div className="card" style={{textAlign:'left'}}>
-        <input 
-          className="search-bar" 
-          placeholder="Search Groups..." 
-          value={search} 
-          onChange={e=>setSearch(e.target.value)} 
-        />
+      <div className="card admin-list">
+        <input className="search-bar" placeholder="Search Groups..." value={search} onChange={e=>setSearch(e.target.value)} />
 
         {filteredGroups.map(g => (
-          <div key={g._id} style={{background:'#252a35', marginBottom:'10px', padding:'10px', borderRadius:'8px'}}>
-            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+          <div key={g._id} className="admin-row">
+            <div className="admin-info">
               <div>
-                <strong style={{color:'#fff', fontSize:'1.1em'}}>{g.groupName}</strong> <br/>
-                <small style={{color:'#888'}}>Users: {g.characters.length} | Msgs: {g.messages.length}</small>
+                <strong>{g.groupName}</strong> <br/>
+                <small>Users: {g.characters.length} | Msgs: {g.messages.length}</small>
               </div>
-              <div style={{display:'flex', gap:'5px'}}>
-                <button style={{width:'auto', padding:'5px 10px', background: '#17a2b8', marginTop:0}} onClick={()=>toggleDetails(g._id)}>
+              <div className="admin-actions">
+                <button className="btn-secondary small" onClick={()=>toggleDetails(g._id)}>
                   {expandedGroup === g._id ? 'Hide' : 'View'}
                 </button>
-                <button style={{width:'auto', padding:'5px 10px', background:'#ff416c', marginTop:0}} onClick={()=>deleteGroup(g._id)}>X</button>
+                <button className="btn-danger small" onClick={()=>deleteGroup(g._id)}>X</button>
               </div>
             </div>
 
             {expandedGroup === g._id && (
-              <div style={{marginTop:'10px', background:'#1a1d24', padding:'10px', borderRadius:'6px'}}>
-                <h4 style={{marginTop:0, color:'#aaa', fontSize:'0.9em'}}>Users & PINs</h4>
-                {g.characters.length === 0 ? <p style={{fontSize:'0.8em'}}>No users.</p> : (
-                  <ul style={{paddingLeft:'20px', margin:'5px 0', fontSize:'0.9em'}}>
+              <div className="admin-details">
+                <h4>Users & PINs</h4>
+                <ul className="user-list">
                     {g.characters.map(c => (
-                      <li key={c._id}><span style={{color:'#00d2ff'}}>{c.name}</span> - {c.pin}</li>
+                      <li key={c._id}><span className="highlight-text">{c.name}</span> - {c.pin}</li>
                     ))}
-                  </ul>
-                )}
-                <h4 style={{margin:'10px 0 5px 0', color:'#aaa', fontSize:'0.9em'}}>Recent Messages</h4>
-                <div style={{maxHeight:'150px', overflowY:'scroll', background:'#111', padding:'8px', borderRadius:'4px'}}>
-                   {g.messages.length === 0 ? <p style={{fontSize:'0.8em', color:'#666'}}>No messages.</p> : (
+                </ul>
+                
+                <h4>Recent Messages</h4>
+                <div className="msg-log">
+                   {g.messages.length === 0 ? <p>No messages.</p> : (
                      g.messages.map((m, i) => (
-                       <div key={i} style={{marginBottom:'5px', fontSize:'0.85em'}}>
-                         <strong style={{color:'#00d2ff'}}>{m.sender}:</strong> {m.fileUrl ? (m.fileType === 'image' ? '[Image]' : `[File: ${m.fileName}]`) : m.text}
+                       <div key={i} className="log-item">
+                         <strong className="highlight-text">{m.sender}:</strong> {m.fileUrl ? (m.fileType === 'image' ? '[Image]' : `[File: ${m.fileName}]`) : m.text}
                        </div>
                      ))
                    )}
