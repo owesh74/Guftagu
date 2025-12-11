@@ -4,16 +4,44 @@ import axios from 'axios';
 import io from 'socket.io-client';
 import './App.css';
 import { RiSendPlane2Line } from "react-icons/ri";
+
 const API_URL = import.meta.env.VITE_API_BASE_URL;
 const socket = io.connect(API_URL);
 
-// --- COMPONENTS ---
+// --- HELPER: REQUEST NOTIFICATION PERMISSION ---
+const requestNotificationPermission = async () => {
+  if (!("Notification" in window)) return;
+  if (Notification.permission === 'default') {
+    await Notification.requestPermission();
+  }
+};
 
-// ... Landing, CreateGroup, JoinGroup, and Admin components remain EXACTLY the same ...
-// ... I will only include the updated GroupRoom component here ...
+// --- HELPER: SHOW NOTIFICATION ---
+const showNotification = (title, body) => {
+  if (Notification.permission === 'granted' && document.hidden) {
+    // You can replace '/vite.svg' with your own logo path if you have one
+    new Notification(title, { body, icon: '/vite.svg' }); 
+  }
+};
+
+// --- COMPONENTS ---
 
 const Landing = () => {
   const navigate = useNavigate();
+  const [showNotifPopup, setShowNotifPopup] = useState(false);
+
+  useEffect(() => {
+    // Check if we need to ask for permission on load
+    if ("Notification" in window && Notification.permission === 'default') {
+      setShowNotifPopup(true);
+    }
+  }, []);
+
+  const enableNotifs = async () => {
+    await Notification.requestPermission();
+    setShowNotifPopup(false);
+  };
+
   return (
     <div className="container">
       <h1>👻 GuftaGu</h1>
@@ -22,59 +50,71 @@ const Landing = () => {
         <button onClick={() => navigate('/create')} style={{marginBottom:'15px'}}>Create New Group</button>
         <button onClick={() => navigate('/join')} className="btn-create" style={{background: '#2d3436', border:'1px solid #555'}}>Open Existing Group</button>
       </div>
+
+      {/* NOTIFICATION POPUP */}
+      {showNotifPopup && (
+        <div className="modal-overlay">
+          <div className="notif-modal-content">
+            <h3 style={{fontSize:'2rem', margin:'0 0 10px 0'}}>🔔</h3>
+            <h3>Enable Notifications?</h3>
+            <p style={{fontSize:'0.9em', color:'#aaa'}}>Get notified when you receive messages while in other tabs.</p>
+            <div className="modal-actions" style={{flexDirection:'column'}}>
+                <button className="btn-enable-notif" onClick={enableNotifs}>Enable Notifications</button>
+                <button className="btn-back" style={{marginTop:'10px', border:'none', width:'100%'}} onClick={() => setShowNotifPopup(false)}>Maybe Later</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
-// Paste CreateGroup and JoinGroup from previous code here...
-const CreateGroup = () => { /* ... KEEP PREVIOUS CODE ... */ 
-    // For brevity, assuming you kept the code from the previous response.
-    // If you need it again, I can paste it, but it's unchanged.
-    const [groupName, setGroupName] = useState('');
-    const [charName, setCharName] = useState('');
-    const [pin, setPin] = useState('');
-    const [error, setError] = useState('');
-    const [showConfirm, setShowConfirm] = useState(false);
-    const navigate = useNavigate();
+const CreateGroup = () => {
+  const [groupName, setGroupName] = useState('');
+  const [charName, setCharName] = useState('');
+  const [pin, setPin] = useState('');
+  const [error, setError] = useState('');
+  const [showConfirm, setShowConfirm] = useState(false);
+  const navigate = useNavigate();
 
-    const handlePreCheck = () => {
-        if (!groupName.trim()) { setError("Please enter a Group Name."); return; }
-        setError(''); setShowConfirm(true); 
-    };
+  const handlePreCheck = () => {
+    if (!groupName.trim()) { setError("Please enter a Group Name."); return; }
+    setError(''); setShowConfirm(true); 
+  };
 
-    const handleCreate = async () => {
-        try {
-        const res = await axios.post(`${API_URL}/api/groups`, { groupName, characterName: charName, pin });
-        setShowConfirm(false); navigate(`/group/${res.data.groupName}`);
-        } catch (err) { setShowConfirm(false); setError(err.response?.data?.error || "Error creating group"); }
-    };
+  const handleCreate = async () => {
+    try {
+      const res = await axios.post(`${API_URL}/api/groups`, { groupName, characterName: charName, pin });
+      setShowConfirm(false); navigate(`/group/${res.data.groupName}`);
+    } catch (err) { setShowConfirm(false); setError(err.response?.data?.error || "Error creating group"); }
+  };
 
-    return (
-        <div className="container">
-        <h3>Create Group</h3>
-        <div className="card">
-            <input placeholder="Enter Unique Group Name" value={groupName} onChange={e=>setGroupName(e.target.value)} />
-            <p style={{marginTop:'15px', borderTop:'1px solid #444', paddingTop:'15px', fontSize:'0.9em', color:'#aaa'}}>Optional: Create your character now</p>
-            <input placeholder="Your Character Name" value={charName} onChange={e=>setCharName(e.target.value)} />
-            <input placeholder="4-Digit PIN" maxLength={4} value={pin} onChange={e=>setPin(e.target.value)} />
-            {error && <span className="error-text">{error}</span>}
-            <button onClick={handlePreCheck} className="btn-login" style={{marginTop:'20px'}}>Create & Continue</button>
-            <button className="btn-back" style={{marginTop:'10px', width:'100%', border:'none'}} onClick={()=>navigate('/')}>Cancel</button>
-        </div>
-        {showConfirm && (
-            <div className="modal-overlay">
-            <div className="modal-content">
-                <h3>Confirm Creation</h3>
-                <p>Group Name: <strong style={{color:'#00d2ff'}}>{groupName}</strong></p>
-                <div className="modal-actions">
-                <button className="btn-cancel" onClick={() => setShowConfirm(false)}>Cancel</button>
-                <button className="btn-confirm" style={{background:'#28a745'}} onClick={handleCreate}>Yes, Create</button>
-                </div>
+  return (
+    <div className="container">
+      <h3>Create Group</h3>
+      <div className="card">
+        <input placeholder="Enter Unique Group Name" value={groupName} onChange={e=>setGroupName(e.target.value)} />
+        <p style={{marginTop:'15px', borderTop:'1px solid #444', paddingTop:'15px', fontSize:'0.9em', color:'#aaa'}}>Optional: Create your character now</p>
+        <input placeholder="Your Character Name" value={charName} onChange={e=>setCharName(e.target.value)} />
+        <input placeholder="4-Digit PIN" maxLength={4} value={pin} onChange={e=>setPin(e.target.value)} />
+        {error && <span className="error-text">{error}</span>}
+        <button onClick={handlePreCheck} className="btn-login" style={{marginTop:'20px'}}>Create & Continue</button>
+        <button className="btn-back" style={{marginTop:'10px', width:'100%', border:'none'}} onClick={()=>navigate('/')}>Cancel</button>
+      </div>
+      {showConfirm && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h3>Confirm Creation</h3>
+            <p>Group Name: <strong style={{color:'#00d2ff'}}>{groupName}</strong></p>
+            <div className="modal-actions">
+              <button className="btn-cancel" onClick={() => setShowConfirm(false)}>Cancel</button>
+              <button className="btn-confirm" style={{background:'#28a745'}} onClick={handleCreate}>Yes, Create</button>
             </div>
-            </div>
-        )}
+          </div>
         </div>
-    );
+      )}
+    </div>
+  );
 };
 
 const JoinGroup = () => {
@@ -84,24 +124,13 @@ const JoinGroup = () => {
   const navigate = useNavigate();
 
   const handleJoin = async () => {
-    if (!name.trim()) {
-      setError("Please enter the Group Name.");
-      return;
-    }
-
-    setLoading(true);
-    setError('');
-
+    if (!name.trim()) { setError("Please enter the Group Name."); return; }
+    setLoading(true); setError('');
     try {
-      // 1. Verify group exists before navigating
       await axios.get(`${API_URL}/api/groups/${name}`);
-      
-      // 2. If successful, navigate
       navigate(`/group/${name}`);
     } catch (err) {
-      // 3. If 404 or error, show warning
-      setLoading(false);
-      setError("Group does not exist. Please check the name.");
+      setLoading(false); setError("Group does not exist. Please check the name.");
     }
   };
 
@@ -109,28 +138,14 @@ const JoinGroup = () => {
     <div className="container">
       <h3>Open Group</h3>
       <div className="card">
-        <input 
-          placeholder="Enter Group Name" 
-          value={name} 
-          onChange={e=>{setName(e.target.value); setError('');}} 
-          onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
-        />
-        
+        <input placeholder="Enter Group Name" value={name} onChange={e=>{setName(e.target.value); setError('');}} onKeyDown={(e) => e.key === 'Enter' && handleJoin()} />
         {error && <span className="error-text">{error}</span>}
-        
-        <button onClick={handleJoin} style={{marginTop:'15px'}} disabled={loading}>
-          {loading ? "Checking..." : "Next"}
-        </button>
-        
-        <button className="btn-back" style={{marginTop:'10px', width:'100%', border:'none'}} onClick={()=>navigate('/')}>
-          Cancel
-        </button>
+        <button onClick={handleJoin} style={{marginTop:'15px'}} disabled={loading}>{loading ? "Checking..." : "Next"}</button>
+        <button className="btn-back" style={{marginTop:'10px', width:'100%', border:'none'}} onClick={()=>navigate('/')}>Cancel</button>
       </div>
     </div>
   );
 };
-
-// --- UPDATED GROUP ROOM WITH FILE UPLOAD ---
 
 // --- UPDATED GROUP ROOM COMPONENT ---
 const GroupRoom = () => {
@@ -162,11 +177,25 @@ const GroupRoom = () => {
 
   useEffect(() => {
     socket.emit('join_room', code);
-    socket.on('receive_message', (msg) => {
+    
+    // --- UPDATED LISTENER FOR NOTIFICATIONS ---
+    const handleReceiveMessage = (msg) => {
       setMessages((prev) => [...prev, msg]);
-    });
-    return () => socket.off('receive_message');
-  }, [code]);
+
+      // If I am logged in AND the message is NOT from me
+      if (myChar && msg.sender !== myChar.name) {
+        showNotification(
+          `New Message in ${code}`, 
+          `${msg.sender}: ${msg.fileUrl ? 'Sent a file' : msg.text}`
+        );
+      }
+    };
+
+    socket.on('receive_message', handleReceiveMessage);
+    
+    // Cleanup listener to prevent duplicates
+    return () => socket.off('receive_message', handleReceiveMessage);
+  }, [code, myChar]); // Re-run if myChar changes (so we know who "I" am)
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -190,6 +219,8 @@ const GroupRoom = () => {
       await axios.post(`${API_URL}/api/groups/${code}/join`, { name, pin, isNew });
       setMyChar({ name, pin });
       setStep('chat');
+      // Ask for permission again just in case they missed the landing page
+      requestNotificationPermission();
     } catch (err) {
       const errMsg = err.response?.data?.error;
       if (err.response?.status === 404 && errMsg === "Group not found") {
@@ -200,12 +231,11 @@ const GroupRoom = () => {
     }
   };
 
-  // --- UPDATED FILE HANDLER (30MB Limit) ---
+  // --- FILE HANDLER (30MB Limit) ---
   const handleFileSelect = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    // UPDATE: Check for 30MB (30 * 1024 * 1024)
     if (file.size > 30 * 1024 * 1024) {
       alert("File is too large! Max 30MB.");
       return;
@@ -247,7 +277,6 @@ const GroupRoom = () => {
   };
 
   if (step === 'auth') {
-    // (Same Auth UI as before - abbreviated for clarity)
     return (
       <div className="container">
         <h3>Group: {code}</h3>
@@ -300,7 +329,7 @@ const GroupRoom = () => {
     );
   }
 
-  // --- UPDATED CHAT RENDER (With Download Buttons) ---
+  // --- CHAT RENDER ---
   return (
     <div className="container">
       <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'0 10px'}}>
@@ -320,7 +349,6 @@ const GroupRoom = () => {
                  {m.fileType === 'image' && (
                    <>
                      <img src={`${API_URL}${m.fileUrl}`} alt="uploaded" className="chat-image" onClick={()=>window.open(`${API_URL}${m.fileUrl}`)} />
-                     {/* Download Button for Image */}
                      <a href={`${API_URL}${m.fileUrl}`} download target="_blank" rel="noopener noreferrer" className="download-btn">
                        ⬇ Download Image
                      </a>
@@ -369,93 +397,111 @@ const GroupRoom = () => {
   );
 };
 
-// ... Admin Component (Assuming you keep it as is, or I can paste it if needed) ...
-const Admin = () => { /* ... KEEP PREVIOUS ADMIN CODE ... */ 
-    // Paste Admin component from previous response here 
-    // It will work automatically with the new backend deletion logic!
-    const [auth, setAuth] = useState(false);
-    const [password, setPassword] = useState('');
-    const [groups, setGroups] = useState([]);
-    const [search, setSearch] = useState('');
-    const [expandedGroup, setExpandedGroup] = useState(null);
-  
-    const login = async () => {
-      try { await axios.post(`${API_URL}/api/admin/login`, { password }); setAuth(true); fetchData(); } 
-      catch(e) { alert("Invalid Password"); }
-    };
-  
-    const fetchData = async () => {
-      const res = await axios.get(`${API_URL}/api/admin/groups`, { headers: { 'x-admin-password': password } });
-      setGroups(res.data);
-    };
-  
-    const deleteGroup = async (id) => {
-      if(!confirm("Delete this group and ALL its files?")) return;
-      await axios.delete(`${API_URL}/api/admin/groups/${id}`, { headers: { 'x-admin-password': password } });
+const Admin = () => {
+  const [auth, setAuth] = useState(false);
+  const [password, setPassword] = useState('');
+  const [groups, setGroups] = useState([]);
+  const [search, setSearch] = useState('');
+  const [expandedGroup, setExpandedGroup] = useState(null);
+
+  const login = async () => {
+    try {
+      await axios.post(`${API_URL}/api/admin/login`, { password });
+      setAuth(true);
       fetchData();
-    };
-  
-    const filteredGroups = groups.filter(g => g.groupName.toLowerCase().includes(search.toLowerCase()));
-    const toggleDetails = (id) => { setExpandedGroup(expandedGroup === id ? null : id); };
-  
-    if (!auth) return (
-      <div className="container">
-        <h3>Admin Panel</h3>
-        <div className="card">
-          <input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Enter Admin Password" />
-          <button onClick={login}>Login</button>
-        </div>
+    } catch(e) { alert("Invalid Password"); }
+  };
+
+  const fetchData = async () => {
+    const res = await axios.get(`${API_URL}/api/admin/groups`, {
+      headers: { 'x-admin-password': password }
+    });
+    setGroups(res.data);
+  };
+
+  const deleteGroup = async (id) => {
+    if(!confirm("Delete this group and ALL its files?")) return;
+    await axios.delete(`${API_URL}/api/admin/groups/${id}`, {
+      headers: { 'x-admin-password': password }
+    });
+    fetchData();
+  };
+
+  const filteredGroups = groups.filter(g => g.groupName.toLowerCase().includes(search.toLowerCase()));
+
+  const toggleDetails = (id) => {
+    setExpandedGroup(expandedGroup === id ? null : id);
+  };
+
+  if (!auth) return (
+    <div className="container">
+      <h3>Admin Panel</h3>
+      <div className="card">
+        <input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Enter Admin Password" />
+        <button onClick={login}>Login</button>
       </div>
-    );
-  
-    return (
-      <div className="container" style={{maxWidth:'600px'}}>
-        <h3>Admin Dashboard</h3>
-        <div style={{display:'flex', gap:'10px', marginBottom:'20px'}}>
-          <button style={{background: '#444', width:'auto'}} onClick={()=>setAuth(false)}>Logout</button>
-          <button style={{background: '#00d2ff', width:'auto', color:'#000'}} onClick={fetchData}>Refresh Data</button>
-        </div>
-        
-        <div className="card" style={{textAlign:'left'}}>
-          <input className="search-bar" placeholder="Search Groups..." value={search} onChange={e=>setSearch(e.target.value)} />
-  
-          {filteredGroups.map(g => (
-            <div key={g._id} style={{background:'#252a35', marginBottom:'10px', padding:'10px', borderRadius:'8px'}}>
-              <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-                <div>
-                  <strong style={{color:'#fff', fontSize:'1.1em'}}>{g.groupName}</strong> <br/>
-                  <small style={{color:'#888'}}>Users: {g.characters.length} | Msgs: {g.messages.length}</small>
-                </div>
-                <div style={{display:'flex', gap:'5px'}}>
-                  <button style={{width:'auto', padding:'5px 10px', background: '#17a2b8', marginTop:0}} onClick={()=>toggleDetails(g._id)}>{expandedGroup === g._id ? 'Hide' : 'View'}</button>
-                  <button style={{width:'auto', padding:'5px 10px', background:'#ff416c', marginTop:0}} onClick={()=>deleteGroup(g._id)}>X</button>
+    </div>
+  );
+
+  return (
+    <div className="container" style={{maxWidth:'600px'}}>
+      <h3>Admin Dashboard</h3>
+      <div style={{display:'flex', gap:'10px', marginBottom:'20px'}}>
+        <button style={{background: '#444', width:'auto'}} onClick={()=>setAuth(false)}>Logout</button>
+        <button style={{background: '#00d2ff', width:'auto', color:'#000'}} onClick={fetchData}>Refresh Data</button>
+      </div>
+      
+      <div className="card" style={{textAlign:'left'}}>
+        <input 
+          className="search-bar" 
+          placeholder="Search Groups..." 
+          value={search} 
+          onChange={e=>setSearch(e.target.value)} 
+        />
+
+        {filteredGroups.map(g => (
+          <div key={g._id} style={{background:'#252a35', marginBottom:'10px', padding:'10px', borderRadius:'8px'}}>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+              <div>
+                <strong style={{color:'#fff', fontSize:'1.1em'}}>{g.groupName}</strong> <br/>
+                <small style={{color:'#888'}}>Users: {g.characters.length} | Msgs: {g.messages.length}</small>
+              </div>
+              <div style={{display:'flex', gap:'5px'}}>
+                <button style={{width:'auto', padding:'5px 10px', background: '#17a2b8', marginTop:0}} onClick={()=>toggleDetails(g._id)}>
+                  {expandedGroup === g._id ? 'Hide' : 'View'}
+                </button>
+                <button style={{width:'auto', padding:'5px 10px', background:'#ff416c', marginTop:0}} onClick={()=>deleteGroup(g._id)}>X</button>
+              </div>
+            </div>
+
+            {expandedGroup === g._id && (
+              <div style={{marginTop:'10px', background:'#1a1d24', padding:'10px', borderRadius:'6px'}}>
+                <h4 style={{marginTop:0, color:'#aaa', fontSize:'0.9em'}}>Users & PINs</h4>
+                {g.characters.length === 0 ? <p style={{fontSize:'0.8em'}}>No users.</p> : (
+                  <ul style={{paddingLeft:'20px', margin:'5px 0', fontSize:'0.9em'}}>
+                    {g.characters.map(c => (
+                      <li key={c._id}><span style={{color:'#00d2ff'}}>{c.name}</span> - {c.pin}</li>
+                    ))}
+                  </ul>
+                )}
+                
+                <h4 style={{margin:'10px 0 5px 0', color:'#aaa', fontSize:'0.9em'}}>Recent Messages</h4>
+                <div style={{maxHeight:'150px', overflowY:'scroll', background:'#111', padding:'8px', borderRadius:'4px'}}>
+                   {g.messages.length === 0 ? <p style={{fontSize:'0.8em', color:'#666'}}>No messages.</p> : (
+                     g.messages.map((m, i) => (
+                       <div key={i} style={{marginBottom:'5px', fontSize:'0.85em'}}>
+                         <strong style={{color:'#00d2ff'}}>{m.sender}:</strong> {m.fileUrl ? (m.fileType === 'image' ? '[Image]' : `[File: ${m.fileName}]`) : m.text}
+                       </div>
+                     ))
+                   )}
                 </div>
               </div>
-              {expandedGroup === g._id && (
-                <div style={{marginTop:'10px', background:'#1a1d24', padding:'10px', borderRadius:'6px'}}>
-                  <h4 style={{marginTop:0, color:'#aaa', fontSize:'0.9em'}}>Users & PINs</h4>
-                  {g.characters.length === 0 ? <p style={{fontSize:'0.8em'}}>No users.</p> : (
-                    <ul style={{paddingLeft:'20px', margin:'5px 0', fontSize:'0.9em'}}>
-                      {g.characters.map(c => (<li key={c._id}><span style={{color:'#00d2ff'}}>{c.name}</span> - {c.pin}</li>))}
-                    </ul>
-                  )}
-                  <h4 style={{margin:'10px 0 5px 0', color:'#aaa', fontSize:'0.9em'}}>Recent Messages</h4>
-                  <div style={{maxHeight:'150px', overflowY:'scroll', background:'#111', padding:'8px', borderRadius:'4px'}}>
-                     {g.messages.length === 0 ? <p style={{fontSize:'0.8em', color:'#666'}}>No messages.</p> : (
-                       g.messages.map((m, i) => (
-                         <div key={i} style={{marginBottom:'5px', fontSize:'0.85em'}}>
-                           <strong style={{color:'#00d2ff'}}>{m.sender}:</strong> {m.fileUrl ? (m.fileType === 'image' ? '[Image]' : `[File: ${m.fileName}]`) : m.text}
-                         </div>
-                       ))
-                     )}
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
+            )}
+          </div>
+        ))}
       </div>
-    );
+    </div>
+  );
 };
 
 function App() {
