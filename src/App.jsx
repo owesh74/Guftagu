@@ -8,60 +8,33 @@ import { RiSendPlane2Line } from "react-icons/ri";
 const API_URL = import.meta.env.VITE_API_BASE_URL;
 const socket = io.connect(API_URL);
 
-// --- HELPER: REQUEST NOTIFICATION PERMISSION ---
-const requestNotificationPermission = async () => {
-  if (!("Notification" in window)) return;
-  if (Notification.permission === 'default') {
-    await Notification.requestPermission();
-  }
-};
-
-// --- HELPER: SHOW NOTIFICATION ---
+// --- HELPER: NOTIFICATIONS ---
 const showNotification = (title, body) => {
   if (Notification.permission === 'granted' && document.hidden) {
-    // You can replace '/vite.svg' with your own logo path if you have one
-    new Notification(title, { body, icon: '/vite.svg' }); 
+    new Notification(title, { body, icon: '/vite.svg' });
   }
 };
 
 // --- COMPONENTS ---
+
 const Landing = () => {
   const navigate = useNavigate();
-  const [showNotifBanner, setShowNotifBanner] = useState(false);
-
-  useEffect(() => {
-    // Check permission on load
+  // Request notification permission quietly on click
+  const requestNotifs = () => {
     if ("Notification" in window && Notification.permission === 'default') {
-      setShowNotifBanner(true);
+      Notification.requestPermission();
     }
-  }, []);
-
-  const enableNotifs = async () => {
-    await Notification.requestPermission();
-    setShowNotifBanner(false);
   };
 
   return (
-    <>
-      {/* 1. TOP BANNER (Only shows if permission is default) */}
-      {showNotifBanner && (
-        <div className="notif-banner">
-          <p>🔔 Enable notifications to know when messages arrive?</p>
-          <button className="enable-btn" onClick={enableNotifs}>Enable</button>
-          <button onClick={() => setShowNotifBanner(false)}>Close</button>
-        </div>
-      )}
-
-      {/* 2. MAIN CONTENT */}
-      <div className="container" style={{ marginTop: showNotifBanner ? '60px' : '0' }}>
-        <h1>👻 GuftaGu</h1>
-        <h2>Private Group Messaging</h2>
-        <div className="card">
-          <button onClick={() => navigate('/create')} style={{marginBottom:'15px'}}>Create New Group</button>
-          <button onClick={() => navigate('/join')} className="btn-create" style={{background: '#2d3436', border:'1px solid #555'}}>Open Existing Group</button>
-        </div>
+    <div className="container" onClick={requestNotifs}>
+      <h1>👻 GuftaGu</h1>
+      <h2>Private Group Messaging</h2>
+      <div className="card">
+        <button onClick={() => navigate('/create')} style={{marginBottom:'15px'}}>Create New Group</button>
+        <button onClick={() => navigate('/join')} className="btn-create" style={{background: '#2d3436', border:'1px solid #555'}}>Open Existing Group</button>
       </div>
-    </>
+    </div>
   );
 };
 
@@ -143,7 +116,7 @@ const JoinGroup = () => {
   );
 };
 
-// --- UPDATED GROUP ROOM COMPONENT ---
+// --- GROUP ROOM COMPONENT ---
 const GroupRoom = () => {
   const { code } = useParams();
   const navigate = useNavigate();
@@ -163,7 +136,9 @@ const GroupRoom = () => {
   
   // Chat State
   const [msgText, setMsgText] = useState('');
+  const [replyTo, setReplyTo] = useState(null); // STORES REPLY
   const [isUploading, setIsUploading] = useState(false);
+  
   const chatEndRef = useRef(null);
   const fileInputRef = useRef(null); 
 
@@ -174,11 +149,8 @@ const GroupRoom = () => {
   useEffect(() => {
     socket.emit('join_room', code);
     
-    // --- UPDATED LISTENER FOR NOTIFICATIONS ---
     const handleReceiveMessage = (msg) => {
       setMessages((prev) => [...prev, msg]);
-
-      // If I am logged in AND the message is NOT from me
       if (myChar && msg.sender !== myChar.name) {
         showNotification(
           `New Message in ${code}`, 
@@ -188,14 +160,12 @@ const GroupRoom = () => {
     };
 
     socket.on('receive_message', handleReceiveMessage);
-    
-    // Cleanup listener to prevent duplicates
     return () => socket.off('receive_message', handleReceiveMessage);
-  }, [code, myChar]); // Re-run if myChar changes (so we know who "I" am)
+  }, [code, myChar]); 
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, replyTo]); // Auto scroll when messages change or reply opens
 
   const fetchGroup = async () => {
     try {
@@ -215,63 +185,49 @@ const GroupRoom = () => {
       await axios.post(`${API_URL}/api/groups/${code}/join`, { name, pin, isNew });
       setMyChar({ name, pin });
       setStep('chat');
-      // Ask for permission again just in case they missed the landing page
-      requestNotificationPermission();
+      if ("Notification" in window && Notification.permission === 'default') Notification.requestPermission();
     } catch (err) {
       const errMsg = err.response?.data?.error;
-      if (err.response?.status === 404 && errMsg === "Group not found") {
-        setError("Group does not exist. Create it first.");
-      } else {
-        setError(errMsg || "Authentication Failed");
-      }
+      if (err.response?.status === 404 && errMsg === "Group not found") setError("Group does not exist. Create it first.");
+      else setError(errMsg || "Authentication Failed");
     }
   };
 
-  // --- FILE HANDLER (30MB Limit) ---
   const handleFileSelect = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-
-    if (file.size > 30 * 1024 * 1024) {
-      alert("File is too large! Max 30MB.");
-      return;
-    }
+    if (file.size > 30 * 1024 * 1024) { alert("File is too large! Max 30MB."); return; }
 
     setIsUploading(true);
     const formData = new FormData();
     formData.append('file', file);
 
     try {
-      const res = await axios.post(`${API_URL}/api/upload`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-
+      const res = await axios.post(`${API_URL}/api/upload`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
       if (res.data.success) {
         const msgData = { 
-          groupName: code, 
-          sender: myChar.name, 
-          text: "", 
-          fileUrl: res.data.fileUrl,
-          fileName: res.data.fileName,
-          fileType: res.data.fileType
+          groupName: code, sender: myChar.name, text: "", replyTo: replyTo,
+          fileUrl: res.data.fileUrl, fileName: res.data.fileName, fileType: res.data.fileType
         };
         await socket.emit('send_message', msgData);
+        setReplyTo(null);
       }
-    } catch (err) {
-      alert("Upload failed.");
-    } finally {
-      setIsUploading(false);
-      e.target.value = null; 
-    }
+    } catch (err) { alert("Upload failed."); } finally { setIsUploading(false); e.target.value = null; }
   };
 
   const sendMessage = async () => {
     if (!msgText.trim()) return;
-    const msgData = { groupName: code, sender: myChar.name, text: msgText };
+    const msgData = { groupName: code, sender: myChar.name, text: msgText, replyTo: replyTo };
     await socket.emit('send_message', msgData);
     setMsgText('');
+    setReplyTo(null);
   };
 
+  const handleDoubleTap = (msg) => {
+    setReplyTo(msg); // Set the message to reply to
+  };
+
+  // --- AUTH VIEW ---
   if (step === 'auth') {
     return (
       <div className="container">
@@ -325,74 +281,139 @@ const GroupRoom = () => {
     );
   }
 
-  // --- CHAT RENDER ---
+  // --- CHAT VIEW (FIXED: Wide Input, Small Exit, Reply) ---
   return (
-    <div className="container">
-      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'0 10px'}}>
-        <h3 style={{margin:0}}>Room: {code}</h3>
-        <button style={{width:'auto', padding:'5px 10px', fontSize:'0.8em', background:'#444'}} onClick={()=>setStep('auth')}>Exit</button>
-      </div>
-      <small style={{display:'block', marginBottom:'10px', color:'#00d2ff'}}>Logged in as: {myChar.name}</small>
+    <div style={{display:'flex', flexDirection:'column', height:'100vh', width:'100vw', overflow:'hidden', position:'fixed', top:0, left:0}}>
       
-      <div className="chat-box">
+      {/* 1. HEADER */}
+      <div style={{
+        background: 'linear-gradient(to bottom, #0a0a0a, #121212)', 
+        padding:'15px 15px', 
+        display:'flex', 
+        justifyContent:'space-between', 
+        alignItems:'center', 
+        boxShadow:'0 2px 5px rgba(0,0,0,0.2)',
+        height: '50px',
+        flexShrink: 0,
+        zIndex: 10
+      }}>
+        <div style={{display:'flex', flexDirection:'column'}}>
+          <h3 style={{margin:0, color:'#d8dfe1ff', fontSize:'1.1em'}}>{code}</h3>
+          <small style={{fontSize:'0.7em', color:'#888'}}></small>
+        </div>
+        <button 
+          style={{width:'auto', padding:'5px 10px', fontSize:'0.8em', background:'#ff4d4d', color:'white', border:'none', borderRadius:'4px', cursor:'pointer'}} 
+          onClick={()=>setStep('auth')}
+        >
+          Exit
+        </button>
+      </div>
+      
+      {/* 2. MESSAGES */}
+      <div className="chat-box" style={{flex: 1, padding:'15px', overflowY:'auto', display:'flex', flexDirection:'column', gap:'10px', paddingBottom:'20px'}}>
         {messages.map((m, i) => (
-          <div key={i} className={`msg ${m.sender === myChar.name ? 'mine' : ''}`}>
+          <div key={i} className={`msg ${m.sender === myChar.name ? 'mine' : ''}`} style={{display:'flex', flexDirection:'column', maxWidth:'80%'}}>
              {m.sender !== myChar.name && <div className="msg-meta">{m.sender}</div>}
              
-             {m.fileUrl ? (
-               <div className="attachment-box">
-                 {/* 1. IMAGE DISPLAY */}
-                 {m.fileType === 'image' && (
-                   <>
-                     <img src={`${API_URL}${m.fileUrl}`} alt="uploaded" className="chat-image" onClick={()=>window.open(`${API_URL}${m.fileUrl}`)} />
-                     <a href={`${API_URL}${m.fileUrl}`} download target="_blank" rel="noopener noreferrer" className="download-btn">
-                       ⬇ Download Image
-                     </a>
-                   </>
-                 )}
+             {/* MESSAGE BUBBLE */}
+             <div 
+               onDoubleClick={() => handleDoubleTap(m)} // DOUBLE TAP LOGIC
+               title="Double tap to reply"
+               style={{cursor:'pointer'}}
+             >
+               {/* REPLY CONTEXT */}
+               {m.replyTo && (
+                 <div style={{
+                   background:'rgba(0,0,0,0.2)', 
+                   borderLeft:'3px solid #00d2ff', 
+                   padding:'5px', 
+                   marginBottom:'5px', 
+                   borderRadius:'4px',
+                   fontSize:'0.8em',
+                   color:'#ccc'
+                 }}>
+                   <strong style={{color:'#00d2ff'}}>{m.replyTo.sender}</strong>: {m.replyTo.text || '[File]'}
+                 </div>
+               )}
 
-                 {/* 2. FILE DISPLAY */}
-                 {m.fileType !== 'image' && (
-                   <a href={`${API_URL}${m.fileUrl}`} download target="_blank" rel="noopener noreferrer" className="download-btn" style={{background:'#333', color:'white', border:'1px solid #555'}}>
-                     <span className="file-icon">📄</span> 
-                     <div>
-                       <div>{m.fileName}</div>
-                       <small style={{color:'#aaa', fontWeight:'normal'}}>Click to Download</small>
-                     </div>
-                   </a>
-                 )}
-               </div>
-             ) : (
-                <span>{m.text}</span>
-             )}
+               {/* CONTENT */}
+               {m.fileUrl ? (
+                 <div className="attachment-box">
+                   {m.fileType === 'image' && (
+                     <>
+                       <img src={`${API_URL}${m.fileUrl}`} alt="uploaded" className="chat-image" onClick={()=>window.open(`${API_URL}${m.fileUrl}`)} />
+                       <a href={`${API_URL}${m.fileUrl}`} download target="_blank" rel="noopener noreferrer" className="download-btn">⬇ Download</a>
+                     </>
+                   )}
+                   {m.fileType !== 'image' && (
+                     <a href={`${API_URL}${m.fileUrl}`} download target="_blank" rel="noopener noreferrer" className="download-btn" style={{background:'#333', color:'white', border:'1px solid #555'}}>
+                       <span className="file-icon">📄</span> 
+                       <div><div>{m.fileName}</div><small style={{color:'#aaa', fontWeight:'normal'}}>Click to Download</small></div>
+                     </a>
+                   )}
+                 </div>
+               ) : (
+                  <span>{m.text}</span>
+               )}
+             </div>
           </div>
         ))}
         {isUploading && <div style={{textAlign:'center', fontSize:'0.8em', color:'#aaa', marginTop:'10px'}}>Uploading file (please wait)...</div>}
         <div ref={chatEndRef} />
       </div>
 
-      <div style={{display:'flex', gap:'10px'}}>
-        <input 
-          type="file" 
-          ref={fileInputRef} 
-          style={{display:'none'}} 
-          onChange={handleFileSelect}
-        />
-        <button 
-          style={{width:'50px', background:'#444', fontSize:'1.2em', padding:'0'}} 
-          onClick={() => fileInputRef.current.click()}
-          title="Upload File"
-        >
-          📎
-        </button>
+      {/* 3. INPUT AREA (Fixed, Wide) */}
+      <div style={{background:'#1a1d21', padding:'10px', borderTop:'1px solid #333', flexShrink:0, width: '100%', boxSizing: 'border-box'}}>
+        
+        {/* REPLY BANNER */}
+        {replyTo && (
+          <div style={{background:'#222', padding:'8px', marginBottom:'8px', borderRadius:'4px', borderLeft:'3px solid #00d2ff', display:'flex', justifyContent:'space-between', color:'white'}}>
+            <span style={{fontSize:'0.9em'}}>Replying to <strong>{replyTo.sender}</strong></span>
+            <span onClick={() => setReplyTo(null)} style={{cursor:'pointer', fontWeight:'bold', color:'#888'}}>✖</span>
+          </div>
+        )}
 
-        <input style={{marginBottom:0}} value={msgText} onChange={e=>setMsgText(e.target.value)} placeholder="Type a message..." onKeyDown={e => e.key === 'Enter' && sendMessage()} />
-        <button style={{width:'80px', marginTop:0}} onClick={sendMessage}><RiSendPlane2Line /></button>
+        <div style={{display:'flex', gap:'10px', alignItems:'center', width:'100%'}}>
+          <input type="file" ref={fileInputRef} style={{display:'none'}} onChange={handleFileSelect} />
+          <button 
+            style={{width:'40px', height:'40px', background:'transparent', fontSize:'1.5em', padding:'0', border:'none', color:'#aaa', cursor:'pointer'}} 
+            onClick={() => fileInputRef.current.click()}
+          >
+            📎
+          </button>
+
+          {/* WIDE INPUT */}
+          <input 
+            style={{
+              flex: 1, 
+              padding:'12px', 
+              borderRadius:'25px', 
+              border:'1px solid #444', 
+              background:'#2a2e38', 
+              color:'white', 
+              fontSize:'1rem',
+              marginBottom: 0,
+              width: '100%'
+            }} 
+            value={msgText} 
+            onChange={e=>setMsgText(e.target.value)} 
+            placeholder="Type a message..." 
+            onKeyDown={e => e.key === 'Enter' && sendMessage()} 
+          />
+          
+          <button 
+            style={{width:'50px', height:'40px', background:'transparent', border:'none', color:'#00d2ff', fontSize:'1.5em', cursor:'pointer', marginTop:0}} 
+            onClick={sendMessage}
+          >
+            <RiSendPlane2Line />
+          </button>
+        </div>
       </div>
     </div>
   );
 };
 
+// --- ADMIN COMPONENT ---
 const Admin = () => {
   const [auth, setAuth] = useState(false);
   const [password, setPassword] = useState('');
@@ -409,10 +430,12 @@ const Admin = () => {
   };
 
   const fetchData = async () => {
-    const res = await axios.get(`${API_URL}/api/admin/groups`, {
-      headers: { 'x-admin-password': password }
-    });
-    setGroups(res.data);
+    try {
+        const res = await axios.get(`${API_URL}/api/admin/groups`, {
+            headers: { 'x-admin-password': password }
+        });
+        setGroups(res.data);
+    } catch (e) { console.error(e); }
   };
 
   const deleteGroup = async (id) => {
@@ -424,10 +447,7 @@ const Admin = () => {
   };
 
   const filteredGroups = groups.filter(g => g.groupName.toLowerCase().includes(search.toLowerCase()));
-
-  const toggleDetails = (id) => {
-    setExpandedGroup(expandedGroup === id ? null : id);
-  };
+  const toggleDetails = (id) => { setExpandedGroup(expandedGroup === id ? null : id); };
 
   if (!auth) return (
     <div className="container">
@@ -444,7 +464,7 @@ const Admin = () => {
       <h3>Admin Dashboard</h3>
       <div style={{display:'flex', gap:'10px', marginBottom:'20px'}}>
         <button style={{background: '#444', width:'auto'}} onClick={()=>setAuth(false)}>Logout</button>
-        <button style={{background: '#00d2ff', width:'auto', color:'#000'}} onClick={fetchData}>Refresh Data</button>
+        <button style={{background: '#00d2ff', width:'auto', color:'#000'}} onClick={fetchData}>Refresh</button>
       </div>
       
       <div className="card" style={{textAlign:'left'}}>
@@ -480,7 +500,6 @@ const Admin = () => {
                     ))}
                   </ul>
                 )}
-                
                 <h4 style={{margin:'10px 0 5px 0', color:'#aaa', fontSize:'0.9em'}}>Recent Messages</h4>
                 <div style={{maxHeight:'150px', overflowY:'scroll', background:'#111', padding:'8px', borderRadius:'4px'}}>
                    {g.messages.length === 0 ? <p style={{fontSize:'0.8em', color:'#666'}}>No messages.</p> : (
