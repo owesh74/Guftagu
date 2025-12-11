@@ -740,17 +740,7 @@ input::placeholder {
 }
 
 /* Chat bubble tail (pointer) for received messages */
-.msg-bubble::before {
-  content: '';
-  position: absolute;
-  left: -8px;
-  top: 10px;
-  width: 0;
-  height: 0;
-  border-top: 8px solid transparent;
-  border-bottom: 8px solid transparent;
-  border-right: 8px solid rgba(30, 30, 40, 0.8);
-}
+
 
 .msg-bubble:hover {
   box-shadow: 0 6px 20px rgba(168, 85, 247, 0.3), 0 0 30px rgba(168, 85, 247, 0.1);
@@ -758,24 +748,13 @@ input::placeholder {
 }
 
 .msg-row.mine .msg-bubble {
-  background: linear-gradient(135deg, var(--neon-purple), var(--neon-purple-light));
+  background: linear-gradient(135deg, var(--neon-purple), var(--neon-purple));
   color: white;
-  box-shadow: 0 4px 20px rgba(168, 85, 247, 0.5), 0 0 40px rgba(168, 85, 247, 0.2);
+  box-shadow: 0 4px 20px rgba(121, 36, 200, 0.5), 0 0 40px rgba(168, 85, 247, 0.2);
   border-radius: 20px;
 }
 
 /* Chat bubble tail (pointer) for sent messages */
-.msg-row.mine .msg-bubble::before {
-  content: '';
-  position: absolute;
-  left: auto;
-  right: -8px;
-  top: 10px;
-  border-right: none;
-  border-left: 8px solid var(--neon-purple-light);
-  border-top: 8px solid transparent;
-  border-bottom: 8px solid transparent;
-}
 
 .msg-row.mine .msg-bubble:hover {
   box-shadow: 0 6px 25px rgba(168, 85, 247, 0.6), 0 0 50px rgba(168, 85, 247, 0.3);
