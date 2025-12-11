@@ -283,7 +283,7 @@ const GroupRoom = () => {
 
   // --- CHAT VIEW (FIXED: Wide Input, Small Exit, Reply) ---
   return (
-    <div style={{display:'flex', flexDirection:'column', height:'100vh', width:'100vw', overflow:'hidden', position:'fixed', top:0, left:0}}>
+    <div style={{display:'flex', flexDirection:'column', height:'100dvh', width:'100vw', overflow:'hidden', position:'fixed', top:0, left:0}}>
       
       {/* 1. HEADER */}
       <div style={{
