@@ -642,12 +642,14 @@ p {
   background: linear-gradient(135deg, var(--bg-card), var(--bg-secondary));
   border: 2px solid var(--neon-purple);
   color: var(--text-primary);
-  padding: 35px;
+  padding: clamp(25px, 5vw, 35px);
   border-radius: 20px;
   text-align: center;
+  width: 90%;
   max-width: 400px;
   box-shadow: 0 0 40px var(--neon-glow), 0 8px 32px rgba(0, 0, 0, 0.6);
   animation: modalSlide 0.3s ease;
+  margin: 0 auto;
 }
 
 .notif-modal-content h3 {
@@ -656,20 +658,21 @@ p {
   -webkit-text-fill-color: transparent;
   background-clip: text;
   margin-bottom: 15px;
-  font-size: 1.4rem;
+  font-size: clamp(1.1rem, 4vw, 1.4rem);
 }
 
 .notif-modal-content p {
   color: var(--text-secondary);
   margin-bottom: 20px;
   line-height: 1.6;
+  font-size: clamp(0.9rem, 2.5vw, 1rem);
 }
 
 .btn-enable-notif {
   background: linear-gradient(135deg, var(--neon-purple), var(--neon-purple-dark)) !important;
   color: white !important;
   font-weight: 700;
-  padding: 14px 32px !important;
+  padding: clamp(12px, 3vw, 14px) clamp(24px, 6vw, 32px) !important;
   margin-top: 15px;
   border: none;
   border-radius: 12px;
@@ -677,12 +680,37 @@ p {
   letter-spacing: 1px;
   box-shadow: 0 4px 15px rgba(178, 75, 243, 0.4);
   transition: all 0.3s ease;
+  width: 100%;
+  max-width: 250px;
+  font-size: clamp(0.85rem, 2.5vw, 1rem);
 }
 
 .btn-enable-notif:hover {
   background: linear-gradient(135deg, var(--neon-purple-light), var(--neon-purple)) !important;
   transform: translateY(-2px);
   box-shadow: 0 6px 25px rgba(178, 75, 243, 0.6) !important;
+}
+
+@media (max-width: 480px) {
+  .notif-modal-content {
+    padding: 20px;
+    border-radius: 16px;
+  }
+  
+  .notif-modal-content h3 {
+    font-size: 1.1rem;
+    margin-bottom: 12px;
+  }
+  
+  .notif-modal-content p {
+    font-size: 0.9rem;
+    margin-bottom: 16px;
+  }
+  
+  .btn-enable-notif {
+    padding: 12px 20px !important;
+    font-size: 0.9rem;
+  }
 }
 
 /* Focus Visible for Accessibility */
