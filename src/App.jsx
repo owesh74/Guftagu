@@ -25,47 +25,43 @@ const showNotification = (title, body) => {
 };
 
 // --- COMPONENTS ---
-
 const Landing = () => {
   const navigate = useNavigate();
-  const [showNotifPopup, setShowNotifPopup] = useState(false);
+  const [showNotifBanner, setShowNotifBanner] = useState(false);
 
   useEffect(() => {
-    // Check if we need to ask for permission on load
+    // Check permission on load
     if ("Notification" in window && Notification.permission === 'default') {
-      setShowNotifPopup(true);
+      setShowNotifBanner(true);
     }
   }, []);
 
   const enableNotifs = async () => {
     await Notification.requestPermission();
-    setShowNotifPopup(false);
+    setShowNotifBanner(false);
   };
 
   return (
-    <div className="container">
-      <h1>👻 GuftaGu</h1>
-      <h2>Private Group Messaging</h2>
-      <div className="card">
-        <button onClick={() => navigate('/create')} style={{marginBottom:'15px'}}>Create New Group</button>
-        <button onClick={() => navigate('/join')} className="btn-create" style={{background: '#2d3436', border:'1px solid #555'}}>Open Existing Group</button>
-      </div>
-
-      {/* NOTIFICATION POPUP */}
-      {showNotifPopup && (
-        <div className="modal-overlay">
-          <div className="notif-modal-content">
-            <h3 style={{fontSize:'2rem', margin:'0 0 10px 0'}}>🔔</h3>
-            <h3>Enable Notifications?</h3>
-            <p style={{fontSize:'0.9em', color:'#aaa'}}>Get notified when you receive messages while in other tabs.</p>
-            <div className="modal-actions" style={{flexDirection:'column'}}>
-                <button className="btn-enable-notif" onClick={enableNotifs}>Enable Notifications</button>
-                <button className="btn-back" style={{marginTop:'10px', border:'none', width:'100%'}} onClick={() => setShowNotifPopup(false)}>Maybe Later</button>
-            </div>
-          </div>
+    <>
+      {/* 1. TOP BANNER (Only shows if permission is default) */}
+      {showNotifBanner && (
+        <div className="notif-banner">
+          <p>🔔 Enable notifications to know when messages arrive?</p>
+          <button className="enable-btn" onClick={enableNotifs}>Enable</button>
+          <button onClick={() => setShowNotifBanner(false)}>Close</button>
         </div>
       )}
-    </div>
+
+      {/* 2. MAIN CONTENT */}
+      <div className="container" style={{ marginTop: showNotifBanner ? '60px' : '0' }}>
+        <h1>👻 GuftaGu</h1>
+        <h2>Private Group Messaging</h2>
+        <div className="card">
+          <button onClick={() => navigate('/create')} style={{marginBottom:'15px'}}>Create New Group</button>
+          <button onClick={() => navigate('/join')} className="btn-create" style={{background: '#2d3436', border:'1px solid #555'}}>Open Existing Group</button>
+        </div>
+      </div>
+    </>
   );
 };
 

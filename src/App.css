@@ -637,6 +637,122 @@ p {
   color: white;
 }
 
+/* --- Notification Top Banner --- */
+.notif-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background: linear-gradient(135deg, var(--neon-purple), var(--neon-purple-dark), #1a1a1a);
+  color: var(--text-primary);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 14px 20px;
+  z-index: 9999;
+  box-shadow: 0 4px 25px rgba(178, 75, 243, 0.5), 0 0 40px var(--neon-glow);
+  box-sizing: border-box;
+  animation: slideDown 0.5s ease-out;
+  backdrop-filter: blur(10px);
+  border-bottom: 2px solid var(--neon-purple-light);
+}
+
+.notif-banner::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  animation: shimmer 3s infinite;
+}
+
+@keyframes shimmer {
+  0%, 100% { transform: translateX(-100%); }
+  50% { transform: translateX(100%); }
+}
+
+.notif-banner p {
+  margin: 0;
+  font-weight: 600;
+  font-size: clamp(0.85rem, 2.5vw, 0.95rem);
+  margin-right: 15px;
+  position: relative;
+  z-index: 1;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+.notif-banner button {
+  width: auto;
+  margin: 0 5px;
+  padding: 8px 20px;
+  font-size: clamp(0.8rem, 2vw, 0.85rem);
+  border: 2px solid var(--text-primary);
+  border-radius: 25px;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  position: relative;
+  z-index: 1;
+  backdrop-filter: blur(5px);
+}
+
+.notif-banner button.enable-btn {
+  background: linear-gradient(135deg, var(--text-primary), rgba(255, 255, 255, 0.9));
+  color: var(--neon-purple-dark);
+  border: 2px solid var(--text-primary);
+  box-shadow: 0 4px 15px rgba(255, 255, 255, 0.3);
+}
+
+.notif-banner button:hover {
+  transform: scale(1.08) translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 255, 255, 0.4);
+}
+
+.notif-banner button.enable-btn:hover {
+  background: linear-gradient(135deg, var(--neon-purple-light), var(--neon-purple));
+  color: white;
+  border-color: var(--neon-purple-light);
+  box-shadow: 0 6px 25px var(--neon-glow);
+}
+
+@keyframes slideDown {
+  from { 
+    transform: translateY(-100%); 
+    opacity: 0;
+  }
+  to { 
+    transform: translateY(0); 
+    opacity: 1;
+  }
+}
+
+/* Mobile Responsive for Banner */
+@media (max-width: 600px) {
+  .notif-banner {
+    flex-direction: column;
+    padding: 12px 15px;
+    gap: 10px;
+  }
+  
+  .notif-banner p {
+    margin-right: 0;
+    margin-bottom: 8px;
+    text-align: center;
+  }
+  
+  .notif-banner button {
+    width: 100%;
+    max-width: 200px;
+    padding: 10px 20px;
+  }
+}
+
 /* Notification Modal */
 .notif-modal-content {
   background: linear-gradient(135deg, var(--bg-card), var(--bg-secondary));
