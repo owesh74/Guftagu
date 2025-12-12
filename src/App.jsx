@@ -8,49 +8,48 @@ import { RiSendPlane2Line } from "react-icons/ri";
 const API_URL = import.meta.env.VITE_API_BASE_URL;
 const socket = io.connect(API_URL);
 
-// --- HELPER: NOTIFICATIONS ---
+// --- HELPERS ---
 const showNotification = (title, body) => {
   if (Notification.permission === 'granted' && document.hidden) {
     new Notification(title, { body, icon: '/vite.svg' });
   }
 };
 
+const formatTime = (isoString) => {
+  if (!isoString) return '';
+  return new Date(isoString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+};
+
+const getDateLabel = (dateString) => {
+  const date = new Date(dateString);
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  if (date.toDateString() === today.toDateString()) return "Today";
+  if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
+  return date.toLocaleDateString();
+};
+
 // --- COMPONENTS ---
 
 const Landing = () => {
   const navigate = useNavigate();
-  const [showNotifBanner, setShowNotifBanner] = useState(false);
-
-  useEffect(() => {
+  const requestNotifs = () => {
     if ("Notification" in window && Notification.permission === 'default') {
-      setShowNotifBanner(true);
+      Notification.requestPermission();
     }
-  }, []);
-
-  const enableNotifs = async () => {
-    await Notification.requestPermission();
-    setShowNotifBanner(false);
   };
 
   return (
-    <>
-      {showNotifBanner && (
-        <div className="notif-banner">
-          <p>🔔 Enable notifications?</p>
-          <button className="enable-btn" onClick={enableNotifs}>Enable</button>
-          <button onClick={() => setShowNotifBanner(false)}>Close</button>
-        </div>
-      )}
-
-      <div className={`container ${showNotifBanner ? 'with-banner' : ''}`}>
-        <h1>👻 GuftaGu</h1>
-        <h2>Private Group Messaging</h2>
-        <div className="card">
-          <button onClick={() => navigate('/create')} className="btn-primary mb-15">Create New Group</button>
-          <button onClick={() => navigate('/join')} className="btn-secondary">Open Existing Group</button>
-        </div>
+    <div className="container" onClick={requestNotifs}>
+      <h1>👻 GuftaGu</h1>
+      <h2>Private Group Messaging</h2>
+      <div className="card">
+        <button onClick={() => navigate('/create')} className="btn-primary mb-15">Create New Group</button>
+        <button onClick={() => navigate('/join')} className="btn-secondary">Open Existing Group</button>
       </div>
-    </>
+    </div>
   );
 };
 
@@ -132,7 +131,7 @@ const JoinGroup = () => {
   );
 };
 
-// --- GROUP ROOM COMPONENT ---
+// --- GROUP ROOM ---
 const GroupRoom = () => {
   const { code } = useParams();
   const navigate = useNavigate();
@@ -309,44 +308,61 @@ const GroupRoom = () => {
       
       {/* 2. MESSAGES */}
       <div className="chat-area">
-        {messages.map((m, i) => (
-          <div key={i} className={`msg-row ${m.sender === myChar.name ? 'mine' : ''}`}>
-             {m.sender !== myChar.name && <div className="msg-meta">{m.sender}</div>}
-             
-             <div 
-               className="msg-bubble"
-               onDoubleClick={() => handleDoubleTap(m)}
-               title="Double tap to reply"
-             >
-               {/* REPLY CONTEXT */}
-               {m.replyTo && (
-                 <div className="reply-context">
-                   <strong className="reply-sender">{m.replyTo.sender}</strong>: {m.replyTo.text || '[File]'}
-                 </div>
-               )}
+        {messages.map((m, i) => {
+          // Date Separator Logic
+          const showDateSeparator = i === 0 || 
+            new Date(m.timestamp).toDateString() !== new Date(messages[i-1].timestamp).toDateString();
 
-               {/* CONTENT */}
-               {m.fileUrl ? (
-                 <div className="attachment-box">
-                   {m.fileType === 'image' && (
-                     <>
-                       <img src={`${API_URL}${m.fileUrl}`} alt="uploaded" className="chat-image" onClick={()=>window.open(`${API_URL}${m.fileUrl}`)} />
-                       <a href={`${API_URL}${m.fileUrl}`} download target="_blank" rel="noopener noreferrer" className="download-btn">⬇ Download</a>
-                     </>
-                   )}
-                   {m.fileType !== 'image' && (
-                     <a href={`${API_URL}${m.fileUrl}`} download target="_blank" rel="noopener noreferrer" className="file-link">
-                       <span className="file-icon">📄</span> 
-                       <div><div>{m.fileName}</div><small>Click to Download</small></div>
-                     </a>
-                   )}
-                 </div>
-               ) : (
-                  <span>{m.text}</span>
-               )}
-             </div>
-          </div>
-        ))}
+          return (
+            <React.Fragment key={i}>
+              {showDateSeparator && (
+                <div className="date-separator">
+                  {getDateLabel(m.timestamp)}
+                </div>
+              )}
+
+              <div className={`msg-row ${m.sender === myChar.name ? 'mine' : ''}`}>
+                {m.sender !== myChar.name && <div className="msg-meta">{m.sender}</div>}
+                
+                <div 
+                  className="msg-bubble"
+                  onDoubleClick={() => handleDoubleTap(m)}
+                  title="Double tap to reply"
+                >
+                  {/* REPLY CONTEXT */}
+                  {m.replyTo && (
+                    <div className="reply-context">
+                      <strong className="reply-sender">{m.replyTo.sender}</strong>: {m.replyTo.text || '[File]'}
+                    </div>
+                  )}
+
+                  {/* CONTENT */}
+                  {m.fileUrl ? (
+                    <div className="attachment-box">
+                      {m.fileType === 'image' && (
+                        <>
+                          <img src={m.fileUrl} alt="uploaded" className="chat-image" onClick={()=>window.open(m.fileUrl)} />
+                          <a href={m.fileUrl} download target="_blank" rel="noopener noreferrer" className="download-btn">⬇ Download</a>
+                        </>
+                      )}
+                      {m.fileType !== 'image' && (
+                        <a href={m.fileUrl} download target="_blank" rel="noopener noreferrer" className="file-link">
+                          <span className="file-icon">📄</span> 
+                          <div><div>{m.fileName}</div><small>Click to Download</small></div>
+                        </a>
+                      )}
+                    </div>
+                  ) : (
+                      <span>{m.text}</span>
+                  )}
+
+                  {/* TIMESTAMP */}
+                  <span className="msg-time">{formatTime(m.timestamp)}</span>
+                </div>
+              </div>
+            </React.Fragment>
+          );
+        })}
         {isUploading && <div className="uploading-text">Uploading file (please wait)...</div>}
         <div ref={chatEndRef} />
       </div>
@@ -383,6 +399,7 @@ const GroupRoom = () => {
   );
 };
 
+// ... (Admin component logic unchanged) ...
 const Admin = () => {
   const [auth, setAuth] = useState(false);
   const [password, setPassword] = useState('');
@@ -391,90 +408,34 @@ const Admin = () => {
   const [expandedGroup, setExpandedGroup] = useState(null);
 
   const login = async () => {
-    try {
-      await axios.post(`${API_URL}/api/admin/login`, { password });
-      setAuth(true);
-      fetchData();
-    } catch(e) { alert("Invalid Password"); }
+    try { await axios.post(`${API_URL}/api/admin/login`, { password }); setAuth(true); fetchData(); } catch(e) { alert("Invalid Password"); }
   };
 
   const fetchData = async () => {
-    try {
-        const res = await axios.get(`${API_URL}/api/admin/groups`, {
-            headers: { 'x-admin-password': password }
-        });
-        setGroups(res.data);
-    } catch (e) { console.error(e); }
+    try { const res = await axios.get(`${API_URL}/api/admin/groups`, { headers: { 'x-admin-password': password } }); setGroups(res.data); } catch (e) { console.error(e); }
   };
 
   const deleteGroup = async (id) => {
     if(!confirm("Delete this group and ALL its files?")) return;
-    await axios.delete(`${API_URL}/api/admin/groups/${id}`, {
-      headers: { 'x-admin-password': password }
-    });
+    await axios.delete(`${API_URL}/api/admin/groups/${id}`, { headers: { 'x-admin-password': password } });
     fetchData();
   };
 
   const filteredGroups = groups.filter(g => g.groupName.toLowerCase().includes(search.toLowerCase()));
   const toggleDetails = (id) => { setExpandedGroup(expandedGroup === id ? null : id); };
 
-  if (!auth) return (
-    <div className="container">
-      <h3>Admin Panel</h3>
-      <div className="card">
-        <input className="auth-input" type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Enter Admin Password" />
-        <button className="btn-primary" onClick={login}>Login</button>
-      </div>
-    </div>
-  );
+  if (!auth) return <div className="container"><h3>Admin Panel</h3><div className="card"><input className="auth-input" type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Enter Admin Password" /><button className="btn-primary" onClick={login}>Login</button></div></div>;
 
   return (
     <div className="container admin-container">
       <h3>Admin Dashboard</h3>
-      <div className="admin-controls">
-        <button className="btn-secondary" onClick={()=>setAuth(false)}>Logout</button>
-        <button className="btn-primary" onClick={fetchData}>Refresh</button>
-      </div>
-      
+      <div className="admin-controls"><button className="btn-secondary" onClick={()=>setAuth(false)}>Logout</button><button className="btn-primary" onClick={fetchData}>Refresh</button></div>
       <div className="card admin-list">
         <input className="search-bar" placeholder="Search Groups..." value={search} onChange={e=>setSearch(e.target.value)} />
-
         {filteredGroups.map(g => (
           <div key={g._id} className="admin-row">
-            <div className="admin-info">
-              <div>
-                <strong>{g.groupName}</strong> <br/>
-                <small>Users: {g.characters.length} | Msgs: {g.messages.length}</small>
-              </div>
-              <div className="admin-actions">
-                <button className="btn-secondary small" onClick={()=>toggleDetails(g._id)}>
-                  {expandedGroup === g._id ? 'Hide' : 'View'}
-                </button>
-                <button className="btn-danger small" onClick={()=>deleteGroup(g._id)}>X</button>
-              </div>
-            </div>
-
-            {expandedGroup === g._id && (
-              <div className="admin-details">
-                <h4>Users & PINs</h4>
-                <ul className="user-list">
-                    {g.characters.map(c => (
-                      <li key={c._id}><span className="highlight-text">{c.name}</span> - {c.pin}</li>
-                    ))}
-                </ul>
-                
-                <h4>Recent Messages</h4>
-                <div className="msg-log">
-                   {g.messages.length === 0 ? <p>No messages.</p> : (
-                     g.messages.map((m, i) => (
-                       <div key={i} className="log-item">
-                         <strong className="highlight-text">{m.sender}:</strong> {m.fileUrl ? (m.fileType === 'image' ? '[Image]' : `[File: ${m.fileName}]`) : m.text}
-                       </div>
-                     ))
-                   )}
-                </div>
-              </div>
-            )}
+            <div className="admin-info"><div><strong>{g.groupName}</strong> <br/><small>Users: {g.characters.length} | Msgs: {g.messages.length}</small></div><div className="admin-actions"><button className="btn-secondary small" onClick={()=>toggleDetails(g._id)}>{expandedGroup === g._id ? 'Hide' : 'View'}</button><button className="btn-danger small" onClick={()=>deleteGroup(g._id)}>X</button></div></div>
+            {expandedGroup === g._id && (<div className="admin-details"><h4>Users & PINs</h4><ul className="user-list">{g.characters.map(c => (<li key={c._id}><span className="highlight-text">{c.name}</span> - {c.pin}</li>))}</ul><h4>Recent Messages</h4><div className="msg-log">{g.messages.length === 0 ? <p>No messages.</p> : (g.messages.map((m, i) => (<div key={i} className="log-item"><strong className="highlight-text">{m.sender}:</strong> {m.fileUrl ? (m.fileType === 'image' ? '[Image]' : `[File: ${m.fileName}]`) : m.text}</div>)))}</div></div>)}
           </div>
         ))}
       </div>

@@ -1041,3 +1041,45 @@ input::placeholder {
 .loading {
   animation: pulse 1.5s ease-in-out infinite;
 }
+
+
+
+
+/* ... (Keep all your existing CSS) ... */
+
+/* --- NEW: DATE SEPARATOR & TIMESTAMP --- */
+
+/* The "Today / Yesterday" Badge */
+.date-separator {
+  align-self: center;
+  background-color: rgba(30, 30, 30, 0.8);
+  color: #888;
+  font-size: 0.75rem;
+  padding: 5px 12px;
+  border-radius: 8px;
+  margin: 15px 0 5px 0;
+  font-weight: 500;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+/* Timestamp inside the bubble */
+.msg-time {
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.5); /* Semi-transparent white */
+  text-align: right;
+  margin-top: 4px;
+  margin-left: 10px; /* Space between text and time */
+  line-height: 1;
+  display: block;
+}
+
+/* Ensure bubble expands to fit time */
+.msg-bubble {
+  min-width: 80px; /* Minimum width to fit short "Hi" + Time */
+  /* Keep existing styles... */
+  padding: 8px 12px;
+  border-radius: 12px;
+  word-wrap: break-word;
+  position: relative;
+  cursor: pointer;
+}
