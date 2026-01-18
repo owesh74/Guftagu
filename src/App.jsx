@@ -43,7 +43,7 @@ const Landing = () => {
 
   return (
     <div className="container" onClick={requestNotifs}>
-      <h1>👻 GuftaGu</h1>
+      <h1>👻 GuftRooms</h1>
       <h2>Private Group Messaging</h2>
       <div className="card">
         <button onClick={() => navigate('/create')} className="btn-primary mb-15">Create New Group</button>
